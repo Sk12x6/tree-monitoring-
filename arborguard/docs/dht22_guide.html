@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArborGuard – DHT22 Temperature & Humidity Integration Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0d0f12;
+    --bg2:      #151820;
+    --bg3:      #1c2030;
+    --border:   #2a2f3d;
+    --green:    #3dffa0;
+    --green-d:  #1a7a4a;
+    --amber:    #ffb840;
+    --blue:     #4da6ff;
+    --red:      #ff5f5f;
+    --purple:   #c792ea;
+    --text:     #e2e4ed;
+    --muted:    #7a7f96;
+    --mono:     'JetBrains Mono', monospace;
+    --sans:     'Syne', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── NAV ── */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(13,15,18,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  }
+  .nav-logo { font-weight: 700; font-size: 13px; color: var(--green); margin-right: 8px; letter-spacing: 0.08em; }
+  .nav a {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
+    color: var(--muted); text-decoration: none;
+    padding: 5px 14px; border-radius: 20px;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  .nav a:hover { color: var(--text); border-color: var(--border); background: var(--bg2); }
+  .nav a.active { color: var(--bg); background: var(--green); border-color: var(--green); }
+
+  /* ── PAGE LAYOUT ── */
+  .page { max-width: 860px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  /* ── SECTION ── */
+  .section { margin-bottom: 72px; scroll-margin-top: 64px; }
+  .section-tag {
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    color: var(--green); letter-spacing: 0.12em; text-transform: uppercase;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .section-tag::before { content: ''; display: inline-block; width: 20px; height: 1px; background: var(--green); }
+  h1 { font-size: 32px; font-weight: 700; line-height: 1.2; color: var(--text); margin-bottom: 12px; }
+  h2 { font-size: 22px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+  h3 { font-size: 16px; font-weight: 600; margin: 28px 0 12px; color: var(--text); }
+  p { color: #b0b4c8; margin-bottom: 14px; line-height: 1.75; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card.highlight { border-color: var(--green-d); background: rgba(61,255,160,0.04); }
+  .card.warn { border-color: #5a4a00; background: rgba(255,184,64,0.04); }
+  .card.info { border-color: #1a3a5c; background: rgba(77,166,255,0.04); }
+  .card.purple { border-color: #4a2a6a; background: rgba(199,146,234,0.04); }
+
+  /* ── STEPS ── */
+  .steps { counter-reset: step; }
+  .step {
+    display: flex; gap: 20px;
+    margin-bottom: 28px; counter-increment: step;
+    position: relative;
+  }
+  .step::before {
+    content: counter(step);
+    flex-shrink: 0;
+    width: 32px; height: 32px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: var(--mono); font-size: 13px; font-weight: 500;
+    color: var(--green);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-body { flex: 1; padding-top: 4px; }
+  .step-body strong { color: var(--text); font-weight: 600; display: block; margin-bottom: 6px; }
+
+  /* ── CODE BLOCK ── */
+  .code-wrap {
+    background: #0a0c10; border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+    margin: 16px 0;
+  }
+  .code-header {
+    background: var(--bg3); padding: 8px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .code-label {
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+    color: var(--muted); letter-spacing: 0.05em;
+  }
+  .copy-btn {
+    background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .copy-btn:hover { border-color: var(--green); color: var(--green); }
+  pre {
+    padding: 20px;
+    overflow-x: auto;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.7;
+    color: #ced3e8;
+  }
+  /* Syntax colors */
+  .kw  { color: #c792ea; }
+  .fn  { color: #82aaff; }
+  .str { color: #c3e88d; }
+  .cmt { color: #546e7a; font-style: italic; }
+  .num { color: #f78c6c; }
+  .def { color: var(--amber); }
+  .macro { color: #89ddff; }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { background: var(--bg3); color: var(--muted); font-weight: 600; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 11px 16px; border-bottom: 1px solid rgba(42,47,61,0.5); color: #b0b4c8; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .pin-badge { display: inline-block; background: var(--bg3); border: 1px solid var(--border); border-radius: 5px; font-family: var(--mono); font-size: 11px; padding: 2px 8px; color: var(--amber); }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; font-family: var(--mono); }
+  .pill.green  { background: rgba(61,255,160,0.1);  color: var(--green);  border: 1px solid var(--green-d); }
+  .pill.amber  { background: rgba(255,184,64,0.1);  color: var(--amber);  border: 1px solid #5a4a00; }
+  .pill.blue   { background: rgba(77,166,255,0.1);  color: var(--blue);   border: 1px solid #1a3a5c; }
+  .pill.red    { background: rgba(255,95,95,0.1);   color: var(--red);    border: 1px solid #5a1a1a; }
+  .pill.purple { background: rgba(199,146,234,0.1); color: var(--purple); border: 1px solid #4a2a6a; }
+
+  /* ── WIRING DIAGRAM ── */
+  .diagram-wrap {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+    overflow-x: auto;
+  }
+
+  /* ── CALLOUT ── */
+  .callout {
+    display: flex; gap: 12px; padding: 14px 18px;
+    border-radius: 8px; margin: 16px 0; font-size: 13.5px;
+  }
+  .callout.tip  { background: rgba(61,255,160,0.06); border-left: 3px solid var(--green); }
+  .callout.warn { background: rgba(255,184,64,0.06); border-left: 3px solid var(--amber); }
+  .callout.note { background: rgba(77,166,255,0.06); border-left: 3px solid var(--blue); }
+  .callout.danger { background: rgba(255,95,95,0.06); border-left: 3px solid var(--red); }
+  .callout-icon { font-size: 16px; flex-shrink: 0; }
+  .callout-text { color: #b0b4c8; line-height: 1.6; }
+  .callout-text strong { color: var(--text); }
+
+  /* ── SERIAL OUTPUT MOCKUP ── */
+  .serial-mock {
+    background: #080a0d; border: 1px solid #1a2030;
+    border-radius: 10px; padding: 16px 20px;
+    font-family: var(--mono); font-size: 12px;
+    line-height: 1.9; margin: 16px 0;
+  }
+  .serial-label {
+    font-size: 10px; color: var(--muted); letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 10px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .s-ok   { color: var(--green); }
+  .s-warn { color: var(--amber); }
+  .s-err  { color: var(--red); }
+  .s-dim  { color: #546e7a; }
+  .s-val  { color: var(--blue); }
+
+  /* ── SPEC BOX ── */
+  .spec-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin: 16px 0;
+  }
+  .spec-item {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px;
+  }
+  .spec-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+  .spec-value { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--green); }
+  .spec-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 40px 0; }
+
+  /* ── CALIBRATION BAR ── */
+  .cal-range {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; margin: 12px 0;
+    font-family: var(--mono); font-size: 12px;
+  }
+  .range-label { color: var(--muted); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+  .range-bar {
+    height: 8px; border-radius: 4px; margin: 8px 0 4px;
+    position: relative;
+  }
+  .range-bar.temp { background: linear-gradient(to right, #4da6ff 0%, #3dffa0 40%, #ffb840 70%, #ff5f5f 100%); }
+  .range-bar.hum  { background: linear-gradient(to right, #ff5f5f 0%, #ffb840 30%, #3dffa0 60%, #4da6ff 100%); }
+  .range-markers { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
+
+  /* ── FOOTER ── */
+  footer { text-align: center; padding: 32px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); }
+
+  code { font-family: var(--mono); color: var(--amber); background: var(--bg3); padding: 2px 6px; border-radius: 4px; font-size: 12.5px; }
+
+  @media (max-width: 600px) {
+    .spec-grid { grid-template-columns: 1fr; }
+    h1 { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <span class="nav-logo">ARBORGUARD</span>
+  <a href="#overview"   class="active">Overview</a>
+  <a href="#materials">Materials</a>
+  <a href="#wiring">Wiring</a>
+  <a href="#code">Code</a>
+  <a href="#calibration">Calibration</a>
+  <a href="#testing">Testing</a>
+</nav>
+
+<div class="page">
+
+<!-- ═══════════════════ OVERVIEW ═══════════════════ -->
+<section class="section" id="overview">
+  <div class="section-tag">Introduction</div>
+  <h1>DHT22 Temperature &amp; Humidity Integration</h1>
+  <p>This guide walks you through the complete integration of a <strong style="color:var(--green)">DHT22 temperature and humidity sensor</strong> into the existing ArborGuard tree-monitoring system. The DHT22 gives you real-time environmental data — critical for understanding whether a tree is under heat or drought stress, and for providing environmental context alongside vibration/sound cutting alerts.</p>
+
+  <div class="card highlight">
+    <h3 style="margin-top:0">What this guide covers</h3>
+    <table>
+      <tr><th>Section</th><th>What you'll do</th><th>Time</th></tr>
+      <tr><td>Materials</td><td>Gather the DHT22, pull-up resistor, and jumper wires</td><td>5 min</td></tr>
+      <tr><td>Wiring</td><td>Connect the sensor to GPIO 27 with a 10kΩ pull-up</td><td>10 min</td></tr>
+      <tr><td>Code</td><td>Install the DHT library and integrate millis()-timed reads</td><td>15 min</td></tr>
+      <tr><td>Calibration</td><td>Verify readings against a reference, apply offsets if needed</td><td>10 min</td></tr>
+      <tr><td>Testing</td><td>Confirm live OLED display, Serial output, and Telegram alerts</td><td>10 min</td></tr>
+    </table>
+  </div>
+
+  <div class="callout note">
+    <span class="callout-icon">ℹ</span>
+    <div class="callout-text"><strong>Already using DHT22?</strong> The base ArborGuard code already has DHT22 reads in the loop. This guide formalises the integration with correct timing, non-blocking reads, calibration offsets, and Telegram reporting — things a quick port often misses.</div>
+  </div>
+
+  <div class="callout warn">
+    <span class="callout-icon">⚠</span>
+    <div class="callout-text"><strong>DHT11 vs DHT22:</strong> These sensors look identical but are NOT interchangeable in code. DHT11 uses a different protocol. If your sensor is labelled DHT11, change <code>DHTTYPE DHT22</code> to <code>DHTTYPE DHT11</code> in the code. However, DHT22 is strongly preferred — it has twice the accuracy and a much wider temperature range.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════ MATERIALS ═══════════════════ -->
+<section class="section" id="materials">
+  <div class="section-tag">Step 1</div>
+  <h2>Materials Needed</h2>
+  <p>The DHT22 needs only one data wire and a single pull-up resistor. If you purchased a DHT22 module (the blue or white PCB board version), the pull-up resistor is already soldered on — you can skip it from the list below.</p>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>Item</th><th>Quantity</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:var(--text)">DHT22 sensor</strong><br><span style="font-size:12px;color:var(--muted)">Model: AM2302 / DHT22</span></td>
+          <td>1</td>
+          <td>Buy the <strong>module</strong> version (on a PCB board) if possible — it includes the resistor. The bare sensor needs a 10kΩ pull-up. Both work identically in code.</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--text)">10kΩ resistor</strong></td>
+          <td>1</td>
+          <td><span class="pill amber">Only needed for bare sensor</span> — skip if you have the PCB module.</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--text)">Jumper wires</strong><br><span style="font-size:12px;color:var(--muted)">Male-to-male or M-to-F</span></td>
+          <td>3</td>
+          <td>VCC, GND, and DATA — three wires total. Female-to-male needed if connecting directly to ESP32 DevKit header pins.</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--text)">Breadboard</strong></td>
+          <td>1 (optional)</td>
+          <td>Only needed if wiring the bare sensor with a resistor. Module version can plug in directly.</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--text)">ESP32 DevKit V1</strong></td>
+          <td>1</td>
+          <td><span class="pill green">Already have</span> — existing ArborGuard hardware.</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--text)">Arduino IDE</strong><br><span style="font-size:12px;color:var(--muted)">v1.8+ or v2.x</span></td>
+          <td>—</td>
+          <td><span class="pill green">Already installed</span> — needed for library manager.</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--text)">DHT sensor library</strong><br><span style="font-size:12px;color:var(--muted)">by Adafruit</span></td>
+          <td>—</td>
+          <td><span class="pill blue">Will install</span> — free via Arduino Library Manager. Requires Adafruit Unified Sensor as a dependency.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>DHT22 sensor specifications</h3>
+  <p>Understanding these limits helps you set realistic calibration expectations and avoid damaging the sensor in extreme deployment environments.</p>
+
+  <div class="spec-grid">
+    <div class="spec-item">
+      <div class="spec-label">Temperature range</div>
+      <div class="spec-value">−40°C to +80°C</div>
+      <div class="spec-sub">±0.5°C accuracy</div>
+    </div>
+    <div class="spec-item">
+      <div class="spec-label">Humidity range</div>
+      <div class="spec-value">0% to 100% RH</div>
+      <div class="spec-sub">±2–5% RH accuracy</div>
+    </div>
+    <div class="spec-item">
+      <div class="spec-label">Supply voltage</div>
+      <div class="spec-value">3.3V – 5.5V</div>
+      <div class="spec-sub">Works on ESP32's 3.3V rail</div>
+    </div>
+    <div class="spec-item">
+      <div class="spec-label">Sampling rate</div>
+      <div class="spec-value">0.5 Hz max</div>
+      <div class="spec-sub">One reading every 2 seconds minimum</div>
+    </div>
+    <div class="spec-item">
+      <div class="spec-label">Protocol</div>
+      <div class="spec-value">Single-wire</div>
+      <div class="spec-sub">1-Wire proprietary — NOT I2C or SPI</div>
+    </div>
+    <div class="spec-item">
+      <div class="spec-label">Pull-up resistor</div>
+      <div class="spec-value">10kΩ</div>
+      <div class="spec-sub">Between DATA and VCC lines</div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <span class="callout-icon">✦</span>
+    <div class="callout-text"><strong>Buying tip:</strong> Search "DHT22 module" on Amazon or local electronics shops. The module (blue PCB) costs the same as the bare sensor and saves you from soldering the resistor. For outdoor tree deployment, consider also buying a waterproof sensor housing or a small weatherproof junction box to protect it from rain.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════ WIRING ═══════════════════ -->
+<section class="section" id="wiring">
+  <div class="section-tag">Step 2</div>
+  <h2>Wiring Instructions</h2>
+  <p>The DHT22 uses a single data pin — <strong style="color:var(--amber)">GPIO 27</strong> on the ESP32, which is already defined in the ArborGuard code. It does NOT share the I2C bus (that's for the OLED and BH1750). It has its own dedicated data line.</p>
+
+  <h3>Pin identification — DHT22 bare sensor (4 pins)</h3>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>DHT22 Pin #</th><th>Label</th><th>Connect to ESP32</th><th>Wire colour</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pin-badge">Pin 1</span> (leftmost)</td><td>VCC</td><td><span class="pin-badge">3.3V</span></td><td>Red</td></tr>
+        <tr><td><span class="pin-badge">Pin 2</span></td><td>DATA (signal)</td><td><span class="pin-badge">GPIO 27</span></td><td>Yellow</td></tr>
+        <tr><td><span class="pin-badge">Pin 3</span></td><td>NC (not connected)</td><td>Leave floating</td><td>—</td></tr>
+        <tr><td><span class="pin-badge">Pin 4</span> (rightmost)</td><td>GND</td><td><span class="pin-badge">GND</span></td><td>Black</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Pin identification — DHT22 module (3 pins, PCB version)</h3>
+  <div class="card">
+    <table>
+      <thead><tr><th>Module Label</th><th>Connect to ESP32</th><th>Wire colour</th></tr></thead>
+      <tbody>
+        <tr><td><strong>VCC</strong> or <strong>+</strong></td><td><span class="pin-badge">3.3V</span></td><td>Red</td></tr>
+        <tr><td><strong>DATA</strong> or <strong>OUT</strong></td><td><span class="pin-badge">GPIO 27</span></td><td>Yellow</td></tr>
+        <tr><td><strong>GND</strong> or <strong>−</strong></td><td><span class="pin-badge">GND</span></td><td>Black</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="callout-icon">⚠</span>
+    <div class="callout-text"><strong>3.3V not 5V!</strong> The ESP32 GPIO pins are NOT 5V tolerant. Always power the DHT22 from the <code>3.3V</code> pin on the ESP32, not the <code>VIN</code> or <code>5V</code> pin. The sensor works fine at 3.3V — there is no need for 5V.</div>
+  </div>
+
+  <h3>Wiring diagram — full system with DHT22</h3>
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 820 500" width="100%" style="display:block">
+      <defs>
+        <marker id="arr-g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="#3dffa0" stroke-width="1.5"/>
+        </marker>
+        <marker id="arr-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="#ffb840" stroke-width="1.5"/>
+        </marker>
+        <marker id="arr-b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="#4da6ff" stroke-width="1.5"/>
+        </marker>
+        <marker id="arr-p" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="#c792ea" stroke-width="1.5"/>
+        </marker>
+      </defs>
+
+      <!-- ESP32 body -->
+      <rect x="300" y="20" width="200" height="460" rx="10" fill="#1c2030" stroke="#2a2f3d" stroke-width="1.5"/>
+      <rect x="318" y="38" width="164" height="68" rx="6" fill="#0d0f12" stroke="#3dffa0" stroke-width="0.6"/>
+      <text x="400" y="67" font-family="JetBrains Mono,monospace" font-size="12" fill="#3dffa0" text-anchor="middle" font-weight="600">ESP32</text>
+      <text x="400" y="84" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">DevKit V1</text>
+      <text x="400" y="100" font-family="JetBrains Mono,monospace" font-size="9" fill="#4da6ff" text-anchor="middle">WiFi ● Built-in</text>
+
+      <!-- Left pins -->
+      <!-- IO21 SDA -->
+      <rect x="252" y="130" width="48" height="18" rx="3" fill="#1c2030" stroke="#ffb840" stroke-width="0.8"/>
+      <text x="276" y="143" font-family="JetBrains Mono,monospace" font-size="9" fill="#ffb840" text-anchor="middle">IO21</text>
+      <line x1="300" y1="139" x2="252" y2="139" stroke="#ffb840" stroke-width="1" stroke-dasharray="2 2"/>
+
+      <!-- IO22 SCL -->
+      <rect x="252" y="154" width="48" height="18" rx="3" fill="#1c2030" stroke="#ffb840" stroke-width="0.8"/>
+      <text x="276" y="167" font-family="JetBrains Mono,monospace" font-size="9" fill="#ffb840" text-anchor="middle">IO22</text>
+      <line x1="300" y1="163" x2="252" y2="163" stroke="#ffb840" stroke-width="1" stroke-dasharray="2 2"/>
+
+      <!-- IO25 Buzzer -->
+      <rect x="252" y="178" width="48" height="18" rx="3" fill="#1c2030" stroke="#ff5f5f" stroke-width="0.8"/>
+      <text x="276" y="191" font-family="JetBrains Mono,monospace" font-size="9" fill="#ff5f5f" text-anchor="middle">IO25</text>
+      <line x1="300" y1="187" x2="252" y2="187" stroke="#ff5f5f" stroke-width="1" stroke-dasharray="2 2"/>
+
+      <!-- IO27 DHT22 — highlighted new pin -->
+      <rect x="248" y="205" width="52" height="20" rx="3" fill="#1c2030" stroke="#c792ea" stroke-width="1.5"/>
+      <text x="274" y="219" font-family="JetBrains Mono,monospace" font-size="9.5" fill="#c792ea" text-anchor="middle" font-weight="600">IO27 ★</text>
+      <line x1="300" y1="215" x2="248" y2="215" stroke="#c792ea" stroke-width="1.5"/>
+
+      <!-- 3.3V -->
+      <rect x="252" y="390" width="48" height="18" rx="3" fill="#1c2030" stroke="#4da6ff" stroke-width="0.8"/>
+      <text x="276" y="403" font-family="JetBrains Mono,monospace" font-size="9" fill="#4da6ff" text-anchor="middle">3.3V</text>
+      <!-- GND -->
+      <rect x="252" y="414" width="48" height="18" rx="3" fill="#1c2030" stroke="#546e7a" stroke-width="0.8"/>
+      <text x="276" y="427" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">GND</text>
+
+      <!-- Right pins -->
+      <!-- IO34 Soil -->
+      <rect x="500" y="130" width="48" height="18" rx="3" fill="#1c2030" stroke="#3dffa0" stroke-width="0.8"/>
+      <text x="524" y="143" font-family="JetBrains Mono,monospace" font-size="9" fill="#3dffa0" text-anchor="middle">IO34</text>
+      <line x1="500" y1="139" x2="548" y2="139" stroke="#3dffa0" stroke-width="1" stroke-dasharray="2 2"/>
+
+      <!-- IO35 Vibration -->
+      <rect x="500" y="154" width="48" height="18" rx="3" fill="#1c2030" stroke="#3dffa0" stroke-width="0.8"/>
+      <text x="524" y="167" font-family="JetBrains Mono,monospace" font-size="9" fill="#3dffa0" text-anchor="middle">IO35</text>
+      <line x1="500" y1="163" x2="548" y2="163" stroke="#3dffa0" stroke-width="1" stroke-dasharray="2 2"/>
+
+      <!-- IO32 Sound -->
+      <rect x="500" y="178" width="48" height="18" rx="3" fill="#1c2030" stroke="#3dffa0" stroke-width="0.8"/>
+      <text x="524" y="191" font-family="JetBrains Mono,monospace" font-size="9" fill="#3dffa0" text-anchor="middle">IO32</text>
+      <line x1="500" y1="187" x2="548" y2="187" stroke="#3dffa0" stroke-width="1" stroke-dasharray="2 2"/>
+
+      <!-- === LEFT DEVICES === -->
+
+      <!-- OLED SH1106 -->
+      <rect x="20" y="118" width="118" height="55" rx="8" fill="#1c2030" stroke="#ffb840" stroke-width="1"/>
+      <text x="79" y="140" font-family="JetBrains Mono,monospace" font-size="10" fill="#ffb840" text-anchor="middle" font-weight="500">SH1106 OLED</text>
+      <text x="79" y="156" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">1.3" I²C</text>
+      <line x1="138" y1="134" x2="252" y2="139" stroke="#ffb840" stroke-width="1.2" marker-end="url(#arr-a)"/>
+      <line x1="138" y1="150" x2="252" y2="163" stroke="#ffb840" stroke-width="1.2" stroke-dasharray="3 2" marker-end="url(#arr-a)"/>
+      <text x="190" y="126" font-family="JetBrains Mono,monospace" font-size="9" fill="#ffb840" text-anchor="middle">SDA</text>
+      <text x="190" y="170" font-family="JetBrains Mono,monospace" font-size="9" fill="#ffb840" text-anchor="middle">SCL</text>
+
+      <!-- BH1750 shares I2C -->
+      <rect x="20" y="188" width="118" height="55" rx="8" fill="#1c2030" stroke="#ffb840" stroke-width="1"/>
+      <text x="79" y="210" font-family="JetBrains Mono,monospace" font-size="10" fill="#ffb840" text-anchor="middle" font-weight="500">BH1750</text>
+      <text x="79" y="226" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">Light · I²C</text>
+      <circle cx="220" cy="139" r="3" fill="#ffb840"/>
+      <circle cx="220" cy="163" r="3" fill="#ffb840"/>
+      <line x1="138" y1="210" x2="220" y2="210" stroke="#ffb840" stroke-width="1"/>
+      <line x1="220" y1="139" x2="220" y2="210" stroke="#ffb840" stroke-width="1"/>
+      <line x1="220" y1="226" x2="220" y2="226" stroke="#ffb840" stroke-width="1"/>
+
+      <!-- DHT22 — new addition, highlighted in purple -->
+      <rect x="15" y="258" width="128" height="70" rx="8" fill="#1c2030" stroke="#c792ea" stroke-width="1.5"/>
+      <!-- glow effect -->
+      <rect x="15" y="258" width="128" height="70" rx="8" fill="none" stroke="#c792ea" stroke-width="3" opacity="0.15"/>
+      <text x="79" y="282" font-family="JetBrains Mono,monospace" font-size="10" fill="#c792ea" text-anchor="middle" font-weight="600">DHT22 ★ NEW</text>
+      <text x="79" y="298" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">Temp &amp; Humidity</text>
+      <text x="79" y="314" font-family="JetBrains Mono,monospace" font-size="9" fill="#4a2a6a" text-anchor="middle">Single-wire · GPIO 27</text>
+      <line x1="143" y1="287" x2="248" y2="215" stroke="#c792ea" stroke-width="1.5" marker-end="url(#arr-p)"/>
+
+      <!-- 10kΩ pull-up resistor symbol -->
+      <text x="196" y="248" font-family="JetBrains Mono,monospace" font-size="9" fill="#c792ea" text-anchor="middle">10kΩ pull-up</text>
+      <text x="196" y="260" font-family="JetBrains Mono,monospace" font-size="9" fill="#4a2a6a" text-anchor="middle">(on PCB module)</text>
+
+      <!-- Buzzer -->
+      <rect x="20" y="345" width="118" height="55" rx="8" fill="#1c2030" stroke="#ff5f5f" stroke-width="1"/>
+      <text x="79" y="368" font-family="JetBrains Mono,monospace" font-size="10" fill="#ff5f5f" text-anchor="middle" font-weight="500">Buzzer</text>
+      <text x="79" y="384" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">Active · GPIO 25</text>
+      <line x1="138" y1="368" x2="252" y2="187" stroke="#ff5f5f" stroke-width="1.2" marker-end="url(#arr-g)"/>
+
+      <!-- === RIGHT DEVICES === -->
+
+      <!-- Soil sensor -->
+      <rect x="650" y="118" width="130" height="55" rx="8" fill="#1c2030" stroke="#3dffa0" stroke-width="1"/>
+      <text x="715" y="140" font-family="JetBrains Mono,monospace" font-size="10" fill="#3dffa0" text-anchor="middle" font-weight="500">Soil Moisture</text>
+      <text x="715" y="156" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">Analog AO · GPIO 34</text>
+      <line x1="650" y1="139" x2="548" y2="139" stroke="#3dffa0" stroke-width="1.2" marker-end="url(#arr-b)"/>
+
+      <!-- Vibration -->
+      <rect x="650" y="188" width="130" height="55" rx="8" fill="#1c2030" stroke="#3dffa0" stroke-width="1"/>
+      <text x="715" y="210" font-family="JetBrains Mono,monospace" font-size="10" fill="#3dffa0" text-anchor="middle" font-weight="500">Vibration</text>
+      <text x="715" y="226" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">Analog AO · GPIO 35</text>
+      <line x1="650" y1="210" x2="548" y2="163" stroke="#3dffa0" stroke-width="1.2" marker-end="url(#arr-b)"/>
+
+      <!-- Sound -->
+      <rect x="650" y="258" width="130" height="55" rx="8" fill="#1c2030" stroke="#3dffa0" stroke-width="1"/>
+      <text x="715" y="280" font-family="JetBrains Mono,monospace" font-size="10" fill="#3dffa0" text-anchor="middle" font-weight="500">Sound Sensor</text>
+      <text x="715" y="296" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">Analog AO · GPIO 32</text>
+      <line x1="650" y1="280" x2="548" y2="187" stroke="#3dffa0" stroke-width="1.2" marker-end="url(#arr-b)"/>
+
+      <!-- Power note -->
+      <text x="79" y="440" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">All VCC → 3.3V</text>
+      <text x="79" y="455" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">All GND → GND</text>
+      <text x="715" y="340" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">All VCC → 3.3V</text>
+      <text x="715" y="355" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a" text-anchor="middle">All GND → GND</text>
+
+      <!-- I2C bus label -->
+      <text x="178" y="110" font-family="JetBrains Mono,monospace" font-size="9" fill="#ffb840" text-anchor="middle">Shared I²C bus</text>
+      <rect x="134" y="114" width="88" height="12" rx="3" fill="none" stroke="#ffb840" stroke-width="0.5" stroke-dasharray="2 2"/>
+
+      <!-- DHT22 legend callout -->
+      <rect x="530" y="360" width="230" height="62" rx="6" fill="#1c2030" stroke="#c792ea" stroke-width="1" opacity="0.9"/>
+      <text x="545" y="378" font-family="JetBrains Mono,monospace" font-size="9" fill="#c792ea">★ DHT22 GPIO 27</text>
+      <text x="545" y="393" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a">— single data wire</text>
+      <text x="545" y="408" font-family="JetBrains Mono,monospace" font-size="9" fill="#546e7a">— NOT on I²C bus</text>
+    </svg>
+  </div>
+
+  <h3>Complete wiring table — all sensors including DHT22</h3>
+  <div class="card">
+    <table>
+      <thead><tr><th>Component</th><th>Component Pin</th><th>ESP32 Pin</th><th>Wire</th></tr></thead>
+      <tbody>
+        <tr style="background:rgba(199,146,234,0.05)">
+          <td><strong style="color:var(--purple)">DHT22 ★ NEW</strong></td>
+          <td>VCC</td>
+          <td><span class="pin-badge">3.3V</span></td>
+          <td>Red</td>
+        </tr>
+        <tr style="background:rgba(199,146,234,0.05)">
+          <td><strong style="color:var(--purple)">DHT22 ★ NEW</strong></td>
+          <td>DATA</td>
+          <td><span class="pin-badge">GPIO 27</span></td>
+          <td>Yellow</td>
+        </tr>
+        <tr style="background:rgba(199,146,234,0.05)">
+          <td><strong style="color:var(--purple)">DHT22 ★ NEW</strong></td>
+          <td>GND</td>
+          <td><span class="pin-badge">GND</span></td>
+          <td>Black</td>
+        </tr>
+        <tr><td>SH1106 OLED</td><td>SDA</td><td><span class="pin-badge">GPIO 21</span></td><td>Yellow</td></tr>
+        <tr><td>SH1106 OLED</td><td>SCL</td><td><span class="pin-badge">GPIO 22</span></td><td>Green</td></tr>
+        <tr><td>SH1106 OLED</td><td>VCC</td><td><span class="pin-badge">3.3V</span></td><td>Red</td></tr>
+        <tr><td>SH1106 OLED</td><td>GND</td><td><span class="pin-badge">GND</span></td><td>Black</td></tr>
+        <tr><td>BH1750</td><td>SDA</td><td><span class="pin-badge">GPIO 21</span> (shared)</td><td>Yellow</td></tr>
+        <tr><td>BH1750</td><td>SCL</td><td><span class="pin-badge">GPIO 22</span> (shared)</td><td>Green</td></tr>
+        <tr><td>BH1750</td><td>VCC</td><td><span class="pin-badge">3.3V</span></td><td>Red</td></tr>
+        <tr><td>BH1750</td><td>GND</td><td><span class="pin-badge">GND</span></td><td>Black</td></tr>
+        <tr><td>Soil Sensor</td><td>AO</td><td><span class="pin-badge">GPIO 34</span></td><td>Orange</td></tr>
+        <tr><td>Vibration Sensor</td><td>AO</td><td><span class="pin-badge">GPIO 35</span></td><td>Purple</td></tr>
+        <tr><td>Sound Sensor</td><td>AO</td><td><span class="pin-badge">GPIO 32</span></td><td>Blue</td></tr>
+        <tr><td>Buzzer</td><td>Signal (+)</td><td><span class="pin-badge">GPIO 25</span></td><td>Red</td></tr>
+        <tr><td>Buzzer</td><td>GND (−)</td><td><span class="pin-badge">GND</span></td><td>Black</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout danger">
+    <span class="callout-icon">⛔</span>
+    <div class="callout-text"><strong>If using the bare 4-pin DHT22 sensor:</strong> You must place a 10kΩ resistor between pin 1 (VCC) and pin 2 (DATA) on a breadboard. Without this pull-up resistor, the data line floats and you will get only <code>nan</code> readings. The PCB module version has this resistor pre-installed.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════ CODE ═══════════════════ -->
+<section class="section" id="code">
+  <div class="section-tag">Step 3</div>
+  <h2>Programming Steps</h2>
+
+  <h3>3a — Install the DHT library</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-body">
+        <strong>Open Arduino IDE Library Manager</strong>
+        <p>Go to <em>Sketch → Include Library → Manage Libraries…</em> (or press <strong>Ctrl+Shift+I</strong>). The Library Manager panel will open on the left side.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-body">
+        <strong>Search and install "DHT sensor library"</strong>
+        <p>Type <code>DHT sensor library</code> in the search box. Find the one by <strong>Adafruit</strong> and click <em>Install</em>. When prompted to install dependencies, click <strong>"Install All"</strong> — this also installs <em>Adafruit Unified Sensor</em> which is required.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-body">
+        <strong>Verify installation</strong>
+        <p>After installation, both <em>DHT sensor library</em> and <em>Adafruit Unified Sensor</em> should appear with a tick (✓) in the Library Manager. You're ready to include them in code.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>3b — Library includes and sensor definition</h3>
+  <p>These lines go at the very top of your sketch, with the other <code>#include</code> statements.</p>
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-label">ArborGuard.ino — top of file</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><span class="macro">#include</span> <span class="str">&lt;DHT.h&gt;</span>
+
+<span class="cmt">// ================================================================
+//  DHT22 SENSOR DEFINITION
+// ================================================================</span>
+<span class="macro">#define</span> <span class="def">DHTPIN</span>   <span class="num">27</span>         <span class="cmt">// GPIO 27 — single data wire</span>
+<span class="macro">#define</span> <span class="def">DHTTYPE</span>  DHT22      <span class="cmt">// IMPORTANT: DHT22, not DHT11</span>
+DHT <span class="fn">dht</span>(<span class="def">DHTPIN</span>, <span class="def">DHTTYPE</span>);</pre>
+  </div>
+
+  <h3>3c — Global state for DHT22 readings</h3>
+  <p>The DHT22 must not be polled more than once every 2 seconds. We use <code>millis()</code> timing so the main loop runs at full speed without blocking. Place this block after your namespace declarations.</p>
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-label">Global state — add after existing namespace blocks</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><span class="cmt">// ================================================================
+//  DHT22 STATE
+// ================================================================</span>
+<span class="kw">namespace</span> <span class="fn">DHTState</span> {
+  <span class="kw">float</span>    temp         = <span class="num">0.0f</span>;   <span class="cmt">// last valid temperature °C</span>
+  <span class="kw">float</span>    hum          = <span class="num">0.0f</span>;   <span class="cmt">// last valid humidity %</span>
+  <span class="kw">bool</span>     valid        = <span class="kw">false</span>;  <span class="cmt">// false until first successful read</span>
+  <span class="kw">uint32_t</span> lastRead     = <span class="num">0</span>;
+  <span class="kw">uint8_t</span>  errorCount   = <span class="num">0</span>;
+  <span class="kw">constexpr</span> <span class="kw">uint32_t</span> READ_INTERVAL = <span class="num">2000</span>; <span class="cmt">// DHT22 max rate: 0.5 Hz</span>
+  <span class="kw">constexpr</span> <span class="kw">float</span>    TEMP_OFFSET   = <span class="num">0.0f</span>; <span class="cmt">// adjust after calibration</span>
+  <span class="kw">constexpr</span> <span class="kw">float</span>    HUM_OFFSET    = <span class="num">0.0f</span>; <span class="cmt">// adjust after calibration</span>
+}</pre>
+  </div>
+
+  <h3>3d — setup() initialisation</h3>
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-label">Inside setup() — add after Wire.begin()</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre>dht.<span class="fn">begin</span>();
+<span class="fn">delay</span>(<span class="num">2000</span>); <span class="cmt">// DHT22 needs 2s after power-on before first read</span>
+Serial.<span class="fn">println</span>(<span class="str">"[DHT22] Sensor initialised on GPIO 27"</span>);</pre>
+  </div>
+
+  <h3>3e — Non-blocking DHT read function</h3>
+  <p>Call this once at the top of <code>loop()</code>. It checks elapsed time, reads the sensor only when due, validates the result, and updates the global state. It never blocks for more than a few microseconds.</p>
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-label">New function — add before setup()</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><span class="cmt">// ================================================================
+//  DHT22 TASK — call every loop(), non-blocking
+// ================================================================</span>
+<span class="kw">void</span> <span class="fn">dhtTask</span>(<span class="kw">uint32_t</span> now) {
+  <span class="kw">if</span> ((now - DHTState::lastRead) < DHTState::READ_INTERVAL) <span class="kw">return</span>;
+  DHTState::lastRead = now;
+
+  <span class="kw">float</span> t = dht.<span class="fn">readTemperature</span>();
+  <span class="kw">float</span> h = dht.<span class="fn">readHumidity</span>();
+
+  <span class="kw">if</span> (<span class="fn">isnan</span>(t) || <span class="fn">isnan</span>(h)) {
+    DHTState::errorCount++;
+    Serial.<span class="fn">printf</span>(<span class="str">"[DHT22] Read failed — error count: %d\n"</span>, DHTState::errorCount);
+    <span class="cmt">// Keep using last valid values (DHTState::temp / hum unchanged)</span>
+    <span class="kw">return</span>;
+  }
+
+  <span class="cmt">// Apply calibration offsets (set to 0.0 until you calibrate)</span>
+  DHTState::temp  = t + DHTState::TEMP_OFFSET;
+  DHTState::hum   = h + DHTState::HUM_OFFSET;
+  DHTState::valid = <span class="kw">true</span>;
+  DHTState::errorCount = <span class="num">0</span>;
+
+  Serial.<span class="fn">printf</span>(<span class="str">"[DHT22] Temp: %.1f°C  Hum: %.1f%%\n"</span>,
+               DHTState::temp, DHTState::hum);
+}</pre>
+  </div>
+
+  <h3>3f — Updated loop()</h3>
+  <p>Add one line to call <code>dhtTask()</code> at the top of your main loop. Then use <code>DHTState::temp</code> and <code>DHTState::hum</code> everywhere instead of calling <code>dht.readTemperature()</code> directly.</p>
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-label">loop() — updated structure</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><span class="kw">void</span> <span class="fn">loop</span>() {
+  <span class="kw">uint32_t</span> now = <span class="fn">millis</span>();
+
+  <span class="fn">dhtTask</span>(now);      <span class="cmt">// ← ADD THIS LINE (first in loop)</span>
+  <span class="fn">wifiTask</span>(now);
+
+  <span class="cmt">// ... rest of loop unchanged</span>
+  <span class="kw">if</span> ((now - tSensor) >= Timing::SENSOR_MS) {
+
+    <span class="cmt">// Use DHTState values — already updated by dhtTask()</span>
+    S.temp  = DHTState::temp;
+    S.hum   = DHTState::hum;
+
+    S.soilF  = <span class="fn">readSmooth</span>(SOIL_PIN);
+    S.vibF   = <span class="fn">readSmooth</span>(VIB_PIN);
+    S.soundF = <span class="fn">readSmooth</span>(SOUND_PIN);
+    S.luxF   = lightMeter.<span class="fn">readLightLevel</span>();
+    tSensor  = now;
+  }
+
+  <span class="fn">updateDisplay</span>(now);
+  <span class="fn">buzzerUpdate</span>(now);
+  <span class="fn">detectTreeCutting</span>(now);
+  <span class="fn">handleAlerts</span>(now);
+}</pre>
+  </div>
+
+  <h3>3g — OLED display update</h3>
+  <p>Replace the old <code>dht.readTemperature()</code> calls in <code>updateDisplay()</code> with the cached values from <code>DHTState</code>. This also shows a "—" placeholder if the sensor hasn't given a valid reading yet.</p>
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-label">Inside updateDisplay() — temperature & humidity lines</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre>u8g2.<span class="fn">setCursor</span>(<span class="num">0</span>, <span class="num">25</span>);
+<span class="kw">if</span> (DHTState::valid) {
+  u8g2.<span class="fn">print</span>(<span class="str">"T:"</span>); u8g2.<span class="fn">print</span>(DHTState::temp, <span class="num">1</span>);
+  u8g2.<span class="fn">print</span>(<span class="str">"C H:"</span>); u8g2.<span class="fn">print</span>(DHTState::hum, <span class="num">0</span>); u8g2.<span class="fn">print</span>(<span class="str">"%"</span>);
+} <span class="kw">else</span> {
+  u8g2.<span class="fn">print</span>(<span class="str">"T:-- H:--"</span>);  <span class="cmt">// shown during first 2s warmup</span>
+}</pre>
+  </div>
+
+  <h3>3h — Add DHT22 data to Telegram alerts</h3>
+  <p>Include temperature and humidity in the tree-cutting alert message for environmental context. Add these lines inside <code>detectTreeCutting()</code> where the Telegram message string is built.</p>
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-label">Inside detectTreeCutting() — extend the Telegram message</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre>String tgMsg = <span class="str">"*🌳 TREE CUTTING ALERT*\n"</span>;
+tgMsg += <span class="str">"Vibration: "</span>  + String(S.vibF)   + <span class="str">" (thresh: "</span> + Thresh::VIB_HIGH   + <span class="str">")\n"</span>;
+tgMsg += <span class="str">"Sound: "</span>     + String(S.soundF) + <span class="str">" (thresh: "</span> + Thresh::SOUND_HIGH + <span class="str">")\n"</span>;
+<span class="cmt">// ↓ New DHT22 lines</span>
+tgMsg += <span class="str">"Temp: "</span>      + String(DHTState::temp, <span class="num">1</span>) + <span class="str">"°C\n"</span>;
+tgMsg += <span class="str">"Humidity: "</span>  + String(DHTState::hum,  <span class="num">0</span>) + <span class="str">"%\n"</span>;
+<span class="cmt">// ↑ End new lines</span>
+tgMsg += <span class="str">"Uptime: "</span>    + String(<span class="fn">millis</span>() / <span class="num">1000</span>) + <span class="str">"s\n"</span>;
+tgMsg += <span class="str">"Node: ArborGuard-1"</span>;
+<span class="fn">sendAlertTelegram</span>(tgMsg, now);</pre>
+  </div>
+
+  <div class="callout tip">
+    <span class="callout-icon">✦</span>
+    <div class="callout-text"><strong>Heat stress alert (optional):</strong> Add a high-temperature alert by checking <code>DHTState::temp > 40.0f</code> inside <code>handleAlerts()</code>. Extreme heat or very low humidity can indicate drought stress in trees — useful data alongside the soil moisture sensor.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════ CALIBRATION ═══════════════════ -->
+<section class="section" id="calibration">
+  <div class="section-tag">Step 4</div>
+  <h2>Calibration Instructions</h2>
+  <p>The DHT22 is factory-calibrated and accurate within ±0.5°C and ±2–5% RH out of the box. For most tree monitoring purposes, no calibration is required. However, if you want to verify accuracy or apply a correction offset, follow these steps.</p>
+
+  <h3>Method 1 — Compare against a reference (recommended)</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-body">
+        <strong>Get a reference measurement</strong>
+        <p>Use any one of: a calibrated thermometer / hygrometer, your phone's built-in weather app (indoors), a kitchen thermometer, or another DHT22 module for cross-comparison. Let the reference device and DHT22 sit in the same room (away from any heat source or direct sunlight) for 15 minutes before taking readings.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-body">
+        <strong>Read both values simultaneously</strong>
+        <p>Open Serial Monitor at 115200 baud and read 5–6 DHT22 temperature values over about 30 seconds. Calculate the average. Note the reference device reading at the same time.</p>
+        <div class="serial-mock">
+          <div class="serial-label">Serial Monitor — example calibration session</div>
+          <span class="s-dim">[DHT22]</span> <span class="s-val">Temp: 27.3°C  Hum: 58.0%</span><br>
+          <span class="s-dim">[DHT22]</span> <span class="s-val">Temp: 27.4°C  Hum: 57.8%</span><br>
+          <span class="s-dim">[DHT22]</span> <span class="s-val">Temp: 27.4°C  Hum: 58.1%</span><br>
+          <span class="s-dim">[DHT22]</span> <span class="s-val">Temp: 27.3°C  Hum: 57.9%</span><br>
+          <span class="s-dim">Average → Temp: 27.35°C · Reference thermometer: 27.0°C</span><br>
+          <span class="s-dim">→ Apply TEMP_OFFSET = -0.35f</span>
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-body">
+        <strong>Calculate and apply the offset</strong>
+        <p>Offset = Reference value − DHT22 average. A positive offset means the DHT22 reads low; negative means it reads high. Apply it in the code:</p>
+        <div class="code-wrap">
+          <div class="code-header">
+            <span class="code-label">DHTState namespace — update offsets after calibration</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <pre><span class="kw">constexpr</span> <span class="kw">float</span> TEMP_OFFSET = <span class="num">-0.35f</span>;  <span class="cmt">// example: DHT reads 0.35°C high</span>
+<span class="kw">constexpr</span> <span class="kw">float</span> HUM_OFFSET  = <span class="num">+2.0f</span>;   <span class="cmt">// example: DHT reads 2% RH low</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Method 2 — Ice water check (temperature only)</h3>
+  <p>This verifies the sensor at the known 0°C reference point. Place the DHT22 in a sealed zip-lock bag (to keep it dry), then immerse the bag in a cup of ice water for 5 minutes. The reading should stabilise to approximately 0–1°C. If it reads 3–4°C or more, the offset is significant.</p>
+
+  <div class="callout warn">
+    <span class="callout-icon">⚠</span>
+    <div class="callout-text"><strong>Keep the sensor dry!</strong> The DHT22 is NOT waterproof. If doing the ice water test, ensure it is completely sealed in a dry bag. Water droplets on the sensor surface will cause inaccurate readings and can permanently damage it.</div>
+  </div>
+
+  <h3>Acceptable operating ranges</h3>
+  <div class="cal-range">
+    <div class="range-label">Temperature — deployment range for tree monitoring</div>
+    <div class="range-bar temp"></div>
+    <div class="range-markers">
+      <span>−10°C (cold stress)</span>
+      <span>15–35°C (optimal)</span>
+      <span>&gt;40°C (heat stress)</span>
+    </div>
+  </div>
+  <div class="cal-range">
+    <div class="range-label">Humidity — typical outdoor range</div>
+    <div class="range-bar hum"></div>
+    <div class="range-markers">
+      <span>&lt;30% (drought)</span>
+      <span>50–80% (healthy)</span>
+      <span>&gt;90% (disease risk)</span>
+    </div>
+  </div>
+
+  <div class="callout note">
+    <span class="callout-icon">ℹ</span>
+    <div class="callout-text"><strong>Humidity near 100%:</strong> In heavy rain or fog, the DHT22 may read close to 100% RH for extended periods. This is correct, not a malfunction. Condensation on the sensor body is normal outdoors and clears when humidity drops.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════ TESTING ═══════════════════ -->
+<section class="section" id="testing">
+  <div class="section-tag">Step 5</div>
+  <h2>Testing the Sensor</h2>
+  <p>Test in three layers — Serial output first, then OLED display, then Telegram message. Each layer depends on the one before it.</p>
+
+  <h3>Layer 1 — Serial Monitor verification</h3>
+  <p>Upload the code and open Serial Monitor at <code>115200</code> baud. Within 2–3 seconds of boot, you should see valid DHT22 readings:</p>
+
+  <div class="serial-mock">
+    <div class="serial-label">Expected Serial output on boot</div>
+    <span class="s-ok">[DHT22] Sensor initialised on GPIO 27</span><br>
+    <span class="s-dim">[WiFi] Connecting to YourNetwork...</span><br>
+    <span class="s-dim">[WiFi] Online — IP: 192.168.1.105</span><br>
+    <span class="s-dim">— 2 seconds pass —</span><br>
+    <span class="s-ok">[DHT22] Temp: 27.4°C  Hum: 62.0%</span><br>
+    <span class="s-dim">[Vib: 48  Sound: 91  Soil: 1820  Lux: 312]</span><br>
+    <span class="s-ok">[DHT22] Temp: 27.3°C  Hum: 62.1%</span><br>
+  </div>
+
+  <div class="callout danger">
+    <span class="callout-icon">⛔</span>
+    <div class="callout-text"><strong>If you see <code>nan</code> or "Read failed":</strong> This means the sensor is not responding. Check wiring first — is GPIO 27 connected to the DATA pin? Is VCC on 3.3V? Is GND connected? If using a bare sensor, is the 10kΩ pull-up resistor between VCC and DATA? If all wiring is correct, try a longer startup delay (<code>delay(3000)</code> in setup).</div>
+  </div>
+
+  <h3>Layer 2 — OLED display check</h3>
+  <p>Once Serial reads are confirmed, look at the OLED screen. Line 2 should show live temperature and humidity. If it shows "T:-- H:--", the sensor is still warming up — wait 3–5 seconds. If it stays stuck on dashes, the <code>DHTState::valid</code> flag is never being set — revisit the <code>dhtTask()</code> function.</p>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>OLED Line</th><th>Expected display</th><th>If wrong</th></tr></thead>
+      <tbody>
+        <tr><td>Line 1</td><td><code>TREE MONITOR</code></td><td>OLED wiring issue (not DHT22)</td></tr>
+        <tr><td>Line 2</td><td><code>T:27.4C H:62%</code></td><td>Check dhtTask() is called in loop()</td></tr>
+        <tr><td>Line 3</td><td><code>Soil:1820</code></td><td>Soil sensor pin issue</td></tr>
+        <tr><td>Line 4</td><td><code>Light:312</code></td><td>BH1750 I2C issue</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Layer 3 — Telegram message with DHT22 data</h3>
+  <p>Temporarily lower alert thresholds to trigger a test message (same method as the Telegram guide). The alert message should now include temperature and humidity:</p>
+
+  <div style="background:#17212b;border-radius:10px;padding:16px;font-family:var(--mono);font-size:12px;border:1px solid #2a3a4a;max-width:320px;margin:16px 0">
+    <div style="color:#3dffa0;font-weight:500;margin-bottom:8px">ArborGuard Alert Bot</div>
+    <div style="display:inline-block;background:#232e3c;border-radius:8px 8px 8px 2px;padding:10px 14px;line-height:1.6">
+      <div style="color:#d0d8e4">
+        <strong style="color:#3dffa0">🌳 TREE CUTTING ALERT</strong><br>
+        Vibration: 1847 (thresh: 1400)<br>
+        Sound: 1934 (thresh: 1600)<br>
+        <span style="color:#c792ea">Temp: 27.4°C</span><br>
+        <span style="color:#c792ea">Humidity: 62%</span><br>
+        Uptime: 3842s<br>
+        Node: ArborGuard-1
+      </div>
+    </div>
+    <div style="color:#4a5568;font-size:10px;margin-top:4px">Now</div>
+  </div>
+
+  <h3>Troubleshooting guide</h3>
+  <div class="card">
+    <table>
+      <thead><tr><th>Symptom</th><th>Likely cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Readings are <code>nan</code> constantly</td>
+          <td>No pull-up resistor / wrong pin / bad wire</td>
+          <td>Check GPIO 27 is connected to DATA, not VCC or GND. Add 10kΩ pull-up if bare sensor.</td>
+        </tr>
+        <tr>
+          <td>First read is always <code>nan</code>, then works</td>
+          <td>DHT22 needs 2s warmup after power-on</td>
+          <td>Normal — <code>delay(2000)</code> in setup() handles this. Don't call <code>readTemperature()</code> before 2s.</td>
+        </tr>
+        <tr>
+          <td>Occasional <code>nan</code> every few minutes</td>
+          <td>Timing — loop() calling DHT too fast (&lt;2s)</td>
+          <td>Confirm <code>dhtTask()</code> only reads when <code>millis() - lastRead &gt;= 2000</code>. Check no other code calls <code>dht.read()</code>.</td>
+        </tr>
+        <tr>
+          <td>Humidity reads 0% or 100% all the time</td>
+          <td>Sensor damaged by moisture / wrong power</td>
+          <td>Check VCC is 3.3V, not 5V. If exposed to condensation, let it dry for 24h in a warm room.</td>
+        </tr>
+        <tr>
+          <td>Temperature reads ~4°C too high</td>
+          <td>ESP32 board self-heating affecting sensor</td>
+          <td>Mount DHT22 at least 5 cm away from the ESP32 chip using extension wires. Apply a negative TEMP_OFFSET after re-measuring.</td>
+        </tr>
+        <tr>
+          <td>OLED shows "T:-- H:--" stuck</td>
+          <td><code>DHTState::valid</code> never set to true</td>
+          <td>Check Serial — if "Read failed" appears every 2s, it's a hardware issue. If no DHT lines appear, <code>dhtTask()</code> is not being called in loop().</td>
+        </tr>
+        <tr>
+          <td>Telegram alert missing Temp/Hum</td>
+          <td>Old message format not updated</td>
+          <td>Confirm Step 3h code changes are in place. Rebuild and re-upload the sketch.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="callout tip">
+    <span class="callout-icon">✦</span>
+    <div class="callout-text">
+      <strong>Self-heating note:</strong> The ESP32 generates heat during WiFi transmission. If the DHT22 is mounted directly on the same board or very close to the ESP32 chip, it may read 2–5°C higher than actual ambient temperature. The fix is simple: use 3 jumper wires to mount the DHT22 sensor at least 5–10 cm away from the ESP32, attached to the tree bark itself rather than the main circuit board.
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <span class="callout-icon">✦</span>
+    <div class="callout-text">
+      <strong>Next upgrade path:</strong> Log temperature and humidity over time to SD card or to a Google Sheet via WiFi. Tracking a week of data lets you correlate soil moisture dryness with humidity drops, giving you early drought detection beyond just the instantaneous soil sensor reading.
+    </div>
+  </div>
+</section>
+
+</div>
+
+<footer>ArborGuard v2.0 — DHT22 Integration Guide · Sivakumar K · Sathyabama Institute · ECE 2028</footer>
+
+<script>
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copied!';
+      btn.style.borderColor = '#3dffa0';
+      btn.style.color = '#3dffa0';
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }, 2000);
+    });
+  }
+
+  // Active nav on scroll
+  const sections = document.querySelectorAll('.section');
+  const navLinks = document.querySelectorAll('.nav a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 80) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+</script>
+</body>
+</html>
